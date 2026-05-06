@@ -88,6 +88,7 @@ http://localhost:8000
 ## Docs
 
 - [Portfolio Document](docs/PORTFOLIO.md)
+- [Korean Portfolio Index](docs/portfolio-ko/00_포트폴리오_목차.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 
