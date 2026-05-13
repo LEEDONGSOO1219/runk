@@ -1,4 +1,4 @@
-class RunningRecord {
+﻿class RunningRecord {
   const RunningRecord({
     required this.id,
     required this.username,

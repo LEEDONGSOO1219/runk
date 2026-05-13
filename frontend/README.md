@@ -1,16 +1,48 @@
-# runk
+# RunK Flutter App
 
-A new Flutter project.
+RunK is a Korean social running MVP built with Flutter. The app focuses on a
+simple login flow, running records, a social-style feed, friends UI, records,
+and app settings with light/dark theme switching.
 
-## Getting Started
+## Current Scope
 
-This project is a starting point for a Flutter application.
+- Splash screen and session restoration
+- Email/password login and signup UI
+- Signup validation for email, nickname, password, and password confirmation
+- Duplicate email/nickname check through the backend API
+- Home, friends, feed, records, running map, record form, profile, and settings screens
+- Light and dark app themes
+- Local token/session persistence with `shared_preferences`
+- REST API integration with the FastAPI backend
 
-A few resources to get you started if this is your first Flutter project:
+## Run Locally
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Start the backend first, then run the Flutter app:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```powershell
+flutter pub get
+flutter run -d windows
+```
+
+For Android emulator testing:
+
+```powershell
+flutter devices
+flutter run -d <device-id>
+```
+
+The API base URL is selected in `lib/services/api_client.dart`.
+
+## Validation
+
+```powershell
+dart format lib test
+flutter analyze
+flutter test
+flutter build windows --debug
+```
+
+## Notes
+
+This is still an MVP. Real social login, GPS route recording, friend relation
+APIs, likes/comments, and production deployment are planned for later phases.

@@ -1,54 +1,46 @@
-# Runk Portfolio Document
+# RunK Portfolio Document
 
-## 1. Project Overview
+## 1. 프로젝트 개요
 
-Runk is a running social network MVP where users can sign up, save running records, and view recent running activity in a simple feed.
+RunK는 러닝 기록을 저장하고 친구/피드로 공유하는 소셜 러닝 MVP입니다.  
+개인 기록 관리에 머무르지 않고, 러닝을 친구와 이어지는 가벼운 소셜 경험으로 확장하는 것을 목표로 했습니다.
 
-The project was built as a solo-developer MVP. The first milestone focuses on a working end-to-end flow rather than adding many social features too early.
+## 2. 문제 정의
 
-## 2. Problem Statement
+러닝 앱은 개인 기록 측정에는 강하지만, 초보 러너나 혼자 달리는 사용자가 꾸준히 동기부여를 받기에는 부족한 경우가 많습니다. RunK는 러닝 기록을 피드와 친구 활동으로 연결해 작은 성취가 사회적 피드백으로 이어지도록 설계했습니다.
 
-Many running apps are strong at personal tracking, but beginner or solo runners often need social motivation to keep running consistently.
+## 3. MVP 목표
 
-Runk turns running records into shareable feed items so that running activity can become a lightweight social experience.
-
-## 3. MVP Goal
-
-The MVP goal is to validate the core product loop:
+핵심 제품 루프:
 
 ```text
-Sign up -> Log in -> Save running record -> View feed -> View profile
+회원가입 -> 로그인 -> 러닝 기록 저장 -> 홈/기록 확인 -> 피드 공유 -> 친구 활동 확인
 ```
 
-Included in Phase 1:
+MVP에서 검증한 범위:
 
-- Sign up and login
-- Save running records
-- Simple feed
-- Basic profile
+- 회원가입/로그인
+- JWT 세션 복원
+- 러닝 기록 저장
+- 내 기록 및 피드 조회
+- 친구/채팅 UI 프로토타입
+- 다크/라이트 테마 전환
+- 보안 기본값과 입력 검증
 
-Excluded from Phase 1:
+## 4. 기술 스택
 
-- Friend system
-- Ranking
-- GPS route storage
-- AI feed
-- Course recommendation
-- Realtime location sharing
-
-## 4. Tech Stack
-
-| Area | Technology |
+| 영역 | 기술 |
 | --- | --- |
-| Frontend | Flutter |
+| Frontend | Flutter, Material 3 |
 | Backend | FastAPI |
-| Database | MySQL |
+| Database | MySQL 8.0 |
 | ORM | SQLAlchemy |
-| Authentication | JWT, bcrypt password hashing |
+| Validation | Pydantic |
+| Authentication | JWT, bcrypt |
 | Local Infra | Docker Compose |
-| Development Tools | Android Studio, PowerShell scripts |
+| Dev Tools | Android Studio, PowerShell, Flutter Test |
 
-## 5. Architecture
+## 5. 아키텍처
 
 ```text
 Flutter App
@@ -62,236 +54,136 @@ FastAPI Backend
 MySQL Database
 ```
 
-The backend exposes REST APIs. The Flutter app calls those APIs through a small API client. MySQL stores users and running records.
+Flutter 앱은 `ApiClient`를 통해 FastAPI REST API를 호출합니다. FastAPI는 Pydantic으로 요청을 검증하고 SQLAlchemy로 MySQL에 접근합니다.
 
-## 6. Main Features
+## 6. 주요 기능
 
-### Authentication
+### 인증
 
-Users can sign up with email, username, and password. Passwords are hashed before storage. Login returns a JWT access token.
+- 이메일/비밀번호 로그인
+- 회원가입
+- 이메일/닉네임 중복 확인
+- 비밀번호 정책 검증
+- JWT 토큰 저장 및 세션 복원
+- 로그아웃
 
-Implemented APIs:
+### 러닝 기록
 
-- `POST /auth/signup`
-- `POST /auth/login`
-- `GET /users/me`
+- 거리, 시간, 날짜, 메모 입력
+- 페이스 자동 계산
+- 미래 날짜 및 비정상 거리/시간 차단
+- 내 러닝 기록 조회
 
-### Running Records
+### 홈
 
-Users can save a running record with distance, duration, date, and memo. The backend calculates pace automatically.
+- 오늘의 러닝 요약
+- 이번 주 거리/시간/페이스 요약
+- 최근 러닝 카드
+- 러닝 시작 버튼
 
-Implemented APIs:
+### 친구/피드/기록
 
-- `POST /running-records`
-- `GET /running-records/me`
+- 친구 목록 UI
+- 채팅 목록 UI
+- 글로벌 피드 조회
+- 기록 통계 카드
+- 주간 흐름 그래프 UI
 
-### Feed
+### 설정
 
-The feed returns the latest running records. For the MVP, the feed is a simple global list.
+- 다크 모드/라이트 모드 전환
+- 러닝 설정
+- 공개 범위
+- 보안/앱 정보
 
-Implemented API:
-
-- `GET /feed`
-
-### Profile
-
-The Flutter app includes a basic profile screen showing the authenticated user's account information.
-
-## 7. Database Design
+## 7. 데이터베이스 설계
 
 ### `users`
 
-| Column | Description |
+| 컬럼 | 설명 |
 | --- | --- |
-| `id` | User ID |
-| `email` | Login email |
-| `username` | Display name |
-| `hashed_password` | Hashed password |
-| `created_at` | Created timestamp |
+| `id` | 사용자 ID |
+| `email` | 로그인 이메일 |
+| `username` | 표시 이름 |
+| `hashed_password` | bcrypt 해시 |
+| `created_at` | 생성 시각 |
 
 ### `running_records`
 
-| Column | Description |
+| 컬럼 | 설명 |
 | --- | --- |
-| `id` | Running record ID |
-| `user_id` | Owner user ID |
-| `distance_km` | Distance in kilometers |
-| `duration_seconds` | Running duration in seconds |
-| `pace_seconds_per_km` | Pace per kilometer |
-| `run_date` | Running date |
-| `memo` | Optional memo |
-| `created_at` | Created timestamp |
+| `id` | 러닝 기록 ID |
+| `user_id` | 사용자 ID |
+| `distance_km` | 거리 |
+| `duration_seconds` | 시간 |
+| `pace_seconds_per_km` | km당 페이스 |
+| `run_date` | 러닝 날짜 |
+| `memo` | 메모 |
+| `created_at` | 생성 시각 |
 
-## 8. Project Structure
+## 8. 보안 설계
 
-```text
-.
-├── backend/
-│   ├── app/
-│   │   ├── core/
-│   │   ├── db.py
-│   │   ├── dependencies.py
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   └── schemas.py
-│   └── requirements.txt
-├── frontend/
-│   ├── android/
-│   ├── lib/
-│   │   ├── models/
-│   │   ├── screens/
-│   │   ├── services/
-│   │   └── widgets/
-│   └── test/
-├── docs/
-├── scripts/
-└── docker-compose.yml
-```
+- 비밀번호는 bcrypt 해시로만 저장
+- JWT secret 환경 변수화
+- non-local 환경에서 기본 개발 secret 차단
+- CORS origin 환경 변수화
+- 보안 헤더 추가
+- API 입력값 검증
+- 피드 조회 limit 범위 제한
 
-## 9. Development Workflow
+## 9. 개발 및 검증
 
-The project includes scripts to make local development reproducible.
-
-| Script | Purpose |
+| 항목 | 결과 |
 | --- | --- |
-| `scripts/start-db.ps1` | Start MySQL with Docker Compose |
-| `scripts/start-backend.ps1` | Prepare and run the FastAPI backend |
-| `scripts/smoke-backend.ps1` | Test signup, record creation, and feed retrieval |
+| FastAPI 헬스 체크 | 통과 |
+| 회원가입 API | 통과 |
+| 로그인 API | 통과 |
+| 러닝 기록 생성 API | 통과 |
+| 피드 조회 API | 통과 |
+| Flutter analyze | 통과 |
+| Flutter widget test | 통과 |
+| Flutter Windows debug build | 통과 |
 
-Recommended local workflow:
-
-```powershell
-.\scripts\start-db.ps1
-.\scripts\start-backend.ps1
-.\scripts\smoke-backend.ps1
-```
-
-If PowerShell blocks scripts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-backend.ps1
-```
-
-Flutter checks:
+검증 명령:
 
 ```powershell
 cd frontend
-flutter pub get
 dart format lib test
 flutter analyze
 flutter test
+flutter build windows --debug
 ```
 
-## 10. Android Studio Setup
+## 10. 프로젝트 의사결정
 
-The `frontend/android` project files are generated, so the `frontend` folder can be opened directly in Android Studio.
+### MVP-first
 
-For Android Emulator, use this Dart define:
+친구 관계, 채팅, GPS 경로 저장은 실제 DB/API까지 확장하기 전 UI와 핵심 흐름을 먼저 구현했습니다.
 
-```text
---dart-define=API_BASE_URL=http://10.0.2.2:8000
-```
+### FastAPI + Pydantic
 
-Reason: Android Emulator cannot access the host PC backend through `localhost`.
+보안과 입력 검증을 명확히 표현하기 위해 FastAPI와 Pydantic을 사용했습니다.
 
-For Chrome or Windows desktop builds, the default API URL is:
+### Docker Compose
 
-```text
-http://localhost:8000
-```
+개발 환경 재현성을 위해 MySQL을 Docker Compose로 실행합니다. 포트 충돌을 피하기 위해 호스트 포트는 `3307`을 사용합니다.
 
-## 11. Validation Result
+### Flutter 테마 구조
 
-Current validation status:
+설정 화면에서 다크/라이트 모드를 전환할 수 있도록 앱 색상 토큰을 중앙화했습니다.
 
-| Check | Result |
-| --- | --- |
-| MySQL Docker container | Passed |
-| Backend health check | Passed |
-| Signup API | Passed |
-| Running record API | Passed |
-| Feed API | Passed |
-| Flutter analyze | Passed |
-| Flutter widget test | Passed |
+## 11. 현재 상태
 
-Backend smoke test result verified:
+MVP 기본 흐름과 포트폴리오 제출용 앱 구조는 완성 상태입니다.
 
-```text
-health: ok
-signup: passed
-create running record: passed
-read feed: passed
-```
+남은 과제:
 
-## 12. Technical Decisions
+- 친구 관계 테이블/API 구현
+- 피드 좋아요/댓글
+- 실제 GPS 경로 저장
+- Android Emulator 및 실기기 QA
+- 배포 환경 구성
 
-### MVP-first scope
+## 12. 회고
 
-The project intentionally avoids adding friends, ranking, GPS routes, and AI recommendations in the first version. The priority is to validate the smallest complete product loop.
-
-### FastAPI and SQLAlchemy
-
-FastAPI provides clear REST API implementation with Pydantic schemas. SQLAlchemy keeps the database layer flexible for future social and ranking features.
-
-### Docker Compose for MySQL
-
-Docker Compose reduces local database setup friction. The host port is set to `3307` to avoid conflicts with existing MySQL installations on port `3306`.
-
-### Configurable API base URL
-
-Flutter reads `API_BASE_URL` through `--dart-define`, which makes the app work across Chrome, Windows desktop, and Android Emulator.
-
-### bcrypt version pinning
-
-`bcrypt==4.0.1` is pinned because `passlib==1.7.4` had a password hashing issue with newer `bcrypt 5.x`.
-
-## 13. Current Status
-
-Phase 1 MVP foundation is complete.
-
-Completed:
-
-- Backend REST APIs
-- MySQL Docker setup
-- Flutter screen structure
-- Android Studio project structure
-- Local development scripts
-- Architecture and development documentation
-- Backend smoke test
-- Flutter static analysis and widget test
-
-Remaining:
-
-- Run and verify the app on Android Emulator
-- Improve UI polish
-- Add richer validation and error messages
-- Expand test coverage
-- Prepare deployment environment
-
-## 14. Roadmap
-
-### Phase 1: MVP
-
-- Sign up / login
-- Running record save
-- Feed
-- Profile
-
-### Phase 2: Social
-
-- Friend system
-- Weekly distance ranking
-- Basic user running stats
-
-### Phase 3: Route and Recommendation
-
-- GPS route coordinate storage
-- Rule-based AI feed
-- Running course recommendation
-
-## 15. Key Learnings
-
-- A useful MVP needs a complete product loop before advanced features.
-- Mobile apps need environment-specific backend URLs, especially for Android Emulator.
-- Docker and scripts make onboarding more predictable.
-- Smoke tests are valuable for catching real API and dependency issues early.
+이번 프로젝트를 통해 단순 CRUD가 아니라 인증, 검증, 보안 기본값, UI 구조, 로컬 인프라, 문서화까지 이어지는 실제 개발 흐름을 경험했습니다. 특히 MVP 범위를 명확히 두고 단계적으로 확장하는 방식의 중요성을 확인했습니다.

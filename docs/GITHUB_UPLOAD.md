@@ -1,61 +1,57 @@
 # GitHub Upload Guide
 
-## Visibility Strategy
+This guide is for submitting RunK as a portfolio project.
 
-GitHub private repositories cannot be viewed by link alone.
+## Recommended Repository Setup
 
-If the repository is private, reviewers must be added as collaborators or organization members. A private repository link only works for people who have permission.
+- Repository: `LEEDONGSOO1219/runk`
+- Visibility: private during active development, public only after checking secrets
+- Description: `Social running MVP built with Flutter, FastAPI, and MySQL.`
+- Main portfolio document: `docs/PORTFOLIO.md`
+- Korean portfolio package: `docs/portfolio-ko/`
+- DOCX report: `deliverables/Runk_Portfolio_Report.docx`
 
-Recommended portfolio options:
+## Do Not Upload
 
-1. Private repository + invite reviewers as collaborators.
-2. Public repository with no secrets and no sensitive data.
-3. Private repository for source code + public portfolio summary page.
-
-For this project, option 1 is recommended while the app is still in active development.
-
-## What Must Not Be Uploaded
-
-These files should stay local:
+The following files must stay local:
 
 - `backend/.env`
 - `backend/.venv/`
 - `backend/.deps/`
 - `frontend/.dart_tool/`
 - `frontend/build/`
+- `.tmp_make_extract/`
 - MySQL data volumes
 
-The repository already ignores these files.
+These paths are ignored by `.gitignore`.
 
-## Recommended Repository Settings
+## Before Pushing
 
-Repository name:
+Run the validation commands from the project root:
 
-```text
-runk
+```powershell
+cd frontend
+dart format lib test
+flutter analyze
+flutter test
+flutter build windows --debug
 ```
 
-Visibility:
+For backend validation:
 
-```text
-Private
+```powershell
+docker compose up -d db
+.\scripts\start-backend.ps1
+.\scripts\smoke-backend.ps1
 ```
 
-Suggested description:
-
-```text
-Running social network MVP built with Flutter, FastAPI, and MySQL.
-```
-
-## Local Git Flow
+## Commit Flow
 
 ```powershell
 git status
-git add .
-git commit -m "Initial Runk MVP scaffold"
-git branch -M main
-git remote add origin https://github.com/<your-github-username>/runk.git
-git push -u origin main
+git add README.md docs deliverables backend frontend scripts .gitignore
+git commit -m "chore: update portfolio materials"
+git push origin main
 ```
 
 ## Sharing a Private Repository
@@ -66,17 +62,13 @@ git push -u origin main
 4. Invite the reviewer by GitHub username or email.
 5. Send the repository link after the invite is accepted.
 
-Without collaborator access, a private repository link will show a 404 or permission error.
+Private repository links show 404 unless the reviewer has access.
 
-## Portfolio Submission Link
+## Submission Checklist
 
-Use this file as the main portfolio document:
-
-```text
-docs/PORTFOLIO.md
-```
-
-If the repository is private, include both:
-
-- GitHub repository link
-- Reviewer GitHub account invited as collaborator
+- GitHub repository link is accessible to the reviewer
+- `README.md` explains the project clearly
+- `docs/PORTFOLIO.md` summarizes scope, architecture, security, and tests
+- `docs/portfolio-ko/` contains formal Korean portfolio documents
+- `deliverables/Runk_Portfolio_Report.docx` is regenerated from current content
+- No secrets or local build artifacts are committed

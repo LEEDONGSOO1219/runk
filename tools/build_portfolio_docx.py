@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from docx import Document
-from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -15,15 +14,26 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "deliverables"
 OUT_PATH = OUT_DIR / "Runk_Portfolio_Report.docx"
 
-NAVY = RGBColor(31, 56, 100)
-GREEN = RGBColor(30, 122, 91)
-LIGHT_BLUE = "D9EAF7"
-LIGHT_GREEN = "E2F0D9"
-LIGHT_GRAY = "F2F2F2"
+INK = RGBColor(25, 28, 34)
+MUTED = RGBColor(93, 101, 115)
+ACCENT = RGBColor(28, 87, 151)
+GREEN = RGBColor(28, 124, 88)
+LIGHT_BLUE = "EAF2FF"
+LIGHT_GREEN = "EAF7F1"
+LIGHT_GRAY = "F4F6F8"
 WHITE = "FFFFFF"
 
 
-def set_cell_shading(cell, fill: str) -> None:
+def font(run, size: int = 10, bold: bool = False, color: RGBColor | None = None) -> None:
+    run.font.name = "Malgun Gothic"
+    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
+    run.font.size = Pt(size)
+    run.bold = bold
+    if color:
+        run.font.color.rgb = color
+
+
+def shade(cell, fill: str) -> None:
     tc_pr = cell._tc.get_or_add_tcPr()
     shd = tc_pr.find(qn("w:shd"))
     if shd is None:
@@ -32,448 +42,263 @@ def set_cell_shading(cell, fill: str) -> None:
     shd.set(qn("w:fill"), fill)
 
 
-def set_cell_text(cell, text: str, bold: bool = False, color: RGBColor | None = None) -> None:
+def set_cell(cell, text: str, bold: bool = False, fill: str | None = None) -> None:
     cell.text = ""
+    if fill:
+        shade(cell, fill)
     paragraph = cell.paragraphs[0]
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    paragraph.paragraph_format.space_after = Pt(0)
     run = paragraph.add_run(text)
-    run.bold = bold
-    run.font.name = "Malgun Gothic"
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-    run.font.size = Pt(9)
-    if color:
-        run.font.color.rgb = color
+    font(run, 9, bold, INK)
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
 
-def set_table_borders(table) -> None:
-    tbl = table._tbl
-    tbl_pr = tbl.tblPr
-    borders = tbl_pr.first_child_found_in("w:tblBorders")
-    if borders is None:
-        borders = OxmlElement("w:tblBorders")
-        tbl_pr.append(borders)
+def borders(table) -> None:
+    tbl_pr = table._tbl.tblPr
+    table_borders = tbl_pr.first_child_found_in("w:tblBorders")
+    if table_borders is None:
+        table_borders = OxmlElement("w:tblBorders")
+        tbl_pr.append(table_borders)
     for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
-        tag = "w:{}".format(edge)
-        element = borders.find(qn(tag))
+        tag = f"w:{edge}"
+        element = table_borders.find(qn(tag))
         if element is None:
             element = OxmlElement(tag)
-            borders.append(element)
+            table_borders.append(element)
         element.set(qn("w:val"), "single")
         element.set(qn("w:sz"), "4")
         element.set(qn("w:space"), "0")
-        element.set(qn("w:color"), "D9D9D9")
+        element.set(qn("w:color"), "DDE2E8")
 
 
-def set_repeat_table_header(row) -> None:
-    tr_pr = row._tr.get_or_add_trPr()
-    tbl_header = OxmlElement("w:tblHeader")
-    tbl_header.set(qn("w:val"), "true")
-    tr_pr.append(tbl_header)
+def table(doc: Document, headers: list[str], rows: list[list[str]], widths: list[float] | None = None):
+    t = doc.add_table(rows=1, cols=len(headers))
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t.style = "Table Grid"
+    borders(t)
 
-
-def add_table(doc: Document, headers: list[str], rows: list[list[str]], widths: list[float] | None = None):
-    table = doc.add_table(rows=1, cols=len(headers))
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.style = "Table Grid"
-    set_table_borders(table)
-    hdr = table.rows[0]
-    set_repeat_table_header(hdr)
     for idx, header in enumerate(headers):
-        set_cell_shading(hdr.cells[idx], LIGHT_BLUE)
-        set_cell_text(hdr.cells[idx], header, bold=True, color=NAVY)
-        hdr.cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        set_cell(t.rows[0].cells[idx], header, True, LIGHT_BLUE)
+        t.rows[0].cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
     for row in rows:
-        cells = table.add_row().cells
+        cells = t.add_row().cells
         for idx, value in enumerate(row):
-            set_cell_text(cells[idx], value)
+            set_cell(cells[idx], value)
             if len(value) <= 8:
                 cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
     if widths:
-        for row in table.rows:
+        for row in t.rows:
             for idx, width in enumerate(widths):
                 row.cells[idx].width = Cm(width)
+
     doc.add_paragraph()
-    return table
+    return t
 
 
-def add_callout(doc: Document, title: str, body: str, fill: str = LIGHT_GREEN) -> None:
-    table = doc.add_table(rows=1, cols=1)
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    cell = table.cell(0, 0)
-    set_cell_shading(cell, fill)
+def callout(doc: Document, title: str, body: str, fill: str = LIGHT_GREEN) -> None:
+    t = doc.add_table(rows=1, cols=1)
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    borders(t)
+    cell = t.cell(0, 0)
+    shade(cell, fill)
     p = cell.paragraphs[0]
     p.paragraph_format.space_after = Pt(4)
     r = p.add_run(title)
-    r.bold = True
-    r.font.name = "Malgun Gothic"
-    r._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-    r.font.size = Pt(10)
-    r.font.color.rgb = NAVY
-    p2 = cell.add_paragraph(body)
+    font(r, 10, True, ACCENT)
+    p2 = cell.add_paragraph()
     p2.paragraph_format.space_after = Pt(0)
-    for run in p2.runs:
-        run.font.name = "Malgun Gothic"
-        run._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-        run.font.size = Pt(9)
+    r2 = p2.add_run(body)
+    font(r2, 9, False, INK)
     doc.add_paragraph()
 
 
-def add_bullets(doc: Document, items: list[str]) -> None:
-    for item in items:
-        p = doc.add_paragraph(style="List Bullet")
-        p.add_run(item)
-
-
-def add_heading(doc: Document, text: str, level: int = 1) -> None:
+def heading(doc: Document, text: str, level: int = 1) -> None:
     p = doc.add_heading(text, level=level)
     for run in p.runs:
-        run.font.name = "Malgun Gothic"
-        run._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-        run.font.color.rgb = NAVY if level == 1 else GREEN
+        font(run, 16 if level == 1 else 12, True, ACCENT if level == 1 else GREEN)
 
 
-def add_paragraph(doc: Document, text: str = "") -> None:
-    p = doc.add_paragraph(text)
+def para(doc: Document, text: str = "", size: int = 10, color: RGBColor = INK) -> None:
+    p = doc.add_paragraph()
     p.paragraph_format.space_after = Pt(6)
+    r = p.add_run(text)
+    font(r, size, False, color)
 
 
-def configure_styles(doc: Document) -> None:
-    styles = doc.styles
-    normal = styles["Normal"]
-    normal.font.name = "Malgun Gothic"
-    normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-    normal.font.size = Pt(10)
-
-    for style_name, size, color in [
-        ("Title", 26, NAVY),
-        ("Heading 1", 17, NAVY),
-        ("Heading 2", 13, GREEN),
-        ("Heading 3", 11, NAVY),
-    ]:
-        style = styles[style_name]
-        style.font.name = "Malgun Gothic"
-        style._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-        style.font.size = Pt(size)
-        style.font.color.rgb = color
+def bullets(doc: Document, items: list[str]) -> None:
+    for item in items:
+        p = doc.add_paragraph(style="List Bullet")
+        p.paragraph_format.space_after = Pt(3)
+        r = p.add_run(item)
+        font(r, 10, False, INK)
 
 
-def setup_page(doc: Document) -> None:
+def configure(doc: Document) -> None:
     section = doc.sections[0]
     section.top_margin = Cm(1.8)
     section.bottom_margin = Cm(1.8)
     section.left_margin = Cm(1.8)
     section.right_margin = Cm(1.8)
-    section.header_distance = Cm(1.0)
-    section.footer_distance = Cm(1.0)
+
+    normal = doc.styles["Normal"]
+    normal.font.name = "Malgun Gothic"
+    normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
+    normal.font.size = Pt(10)
+
+    footer = section.footer.paragraphs[0]
+    footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    r = footer.add_run("RunK Portfolio Report")
+    font(r, 8, False, MUTED)
 
 
-def add_footer(section, text: str) -> None:
-    footer = section.footer
-    p = footer.paragraphs[0]
-    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p.text = text
-    for run in p.runs:
-        run.font.name = "Malgun Gothic"
-        run._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-        run.font.size = Pt(8)
-        run.font.color.rgb = RGBColor(100, 100, 100)
+def cover(doc: Document) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(84)
+    r = p.add_run("RunK\n포트폴리오 보고서")
+    font(r, 28, True, INK)
+
+    sub = doc.add_paragraph()
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sub.paragraph_format.space_before = Pt(14)
+    r2 = sub.add_run("사람과 사람을 잇는 소셜 러닝 MVP")
+    font(r2, 14, False, MUTED)
+
+    doc.add_paragraph()
+    table(
+        doc,
+        ["항목", "내용"],
+        [
+            ["프로젝트", "RunK"],
+            ["유형", "1인 개발 포트폴리오 MVP"],
+            ["기술", "Flutter, FastAPI, MySQL, SQLAlchemy, JWT, Docker"],
+            ["상태", "인증, 기록, 피드, 화면 구조, 테마 설정 구현"],
+        ],
+        [4, 11],
+    )
+    doc.add_page_break()
 
 
 def build_doc() -> None:
     OUT_DIR.mkdir(exist_ok=True)
     doc = Document()
-    setup_page(doc)
-    configure_styles(doc)
-    add_footer(doc.sections[0], "Runk Portfolio Report")
+    configure(doc)
+    cover(doc)
 
-    # Cover
-    title = doc.add_paragraph()
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title.paragraph_format.space_before = Pt(70)
-    run = title.add_run("런크(Runk)\n포트폴리오 보고서")
-    run.bold = True
-    run.font.name = "Malgun Gothic"
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-    run.font.size = Pt(28)
-    run.font.color.rgb = NAVY
-
-    subtitle = doc.add_paragraph()
-    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    subtitle.paragraph_format.space_before = Pt(18)
-    sub = subtitle.add_run("러닝 기록 기반 소셜 네트워크 서비스 MVP")
-    sub.font.name = "Malgun Gothic"
-    sub._element.rPr.rFonts.set(qn("w:eastAsia"), "Malgun Gothic")
-    sub.font.size = Pt(14)
-    sub.font.color.rgb = GREEN
-
-    doc.add_paragraph()
-    add_table(
+    heading(doc, "1. 프로젝트 개요")
+    para(
         doc,
-        ["항목", "내용"],
-        [
-            ["프로젝트 유형", "1인 개발 MVP"],
-            ["기술 스택", "Flutter, FastAPI, MySQL, Docker Compose"],
-            ["현재 단계", "1단계 MVP 기본 구현 및 개발환경 구축 완료"],
-            ["Repository", "Private GitHub repository: LEEDONGSOO1219/runk"],
-        ],
-        [4, 11],
+        "RunK는 러닝 기록을 저장하고 친구와 공유하는 한국어 소셜 러닝 앱 MVP입니다. "
+        "실무형 포트폴리오를 목표로 인증, API, DB, 앱 화면 구조, 보안 고려사항, 테스트 문서를 함께 정리했습니다.",
     )
-    add_callout(
-        doc,
-        "핵심 요약",
-        "회원가입, 로그인, 러닝 기록 저장, 피드 조회, 프로필 확인까지 이어지는 MVP 핵심 흐름을 구현하고 백엔드 smoke test와 Flutter analyze/test를 통과했습니다.",
-    )
-    doc.add_page_break()
-
-    # Contents
-    add_heading(doc, "목차", 1)
-    for idx, item in enumerate(
-        [
-            "프로젝트 개요",
-            "요구사항 정의",
-            "WBS",
-            "시스템 아키텍처",
-            "API 명세",
-            "DB 설계",
-            "테스트 계획 및 결과",
-            "개발 회고 및 향후 계획",
-        ],
-        start=1,
-    ):
-        add_paragraph(doc, f"{idx}. {item}")
-    doc.add_page_break()
-
-    add_heading(doc, "1. 프로젝트 개요", 1)
-    add_paragraph(
-        doc,
-        "런크(Runk)는 러닝 기록을 기반으로 러너들이 서로의 활동을 확인하고 동기부여를 받을 수 있는 러닝 소셜 네트워크 서비스입니다.",
-    )
-    add_table(
+    table(
         doc,
         ["구분", "내용"],
         [
-            ["프로젝트명", "런크(Runk)"],
-            ["개발 형태", "1인 개발 프로젝트"],
-            ["목표 사용자", "초보 러너, 개인 러너, 기록 공유를 원하는 사용자"],
-            ["MVP 목표", "회원가입 -> 기록 저장 -> 피드 조회까지 이어지는 핵심 흐름 검증"],
-        ],
-        [4, 11],
-    )
-    add_heading(doc, "기능 범위", 2)
-    add_table(
-        doc,
-        ["단계", "포함 기능"],
-        [
-            ["1단계 MVP", "회원가입/로그인, 러닝 기록 저장, 피드, 프로필"],
-            ["2단계", "친구 기능, 랭킹"],
-            ["3단계", "GPS 좌표 저장, 룰 기반 AI 피드, 러닝 코스 추천"],
+            ["핵심 가치", "사람과 사람을 잇는 소셜 러닝"],
+            ["대상 사용자", "러닝 기록을 남기고 친구와 공유하고 싶은 사용자"],
+            ["MVP 범위", "회원가입, 로그인, 기록 저장, 피드 조회, 앱 주요 화면"],
+            ["다음 단계", "친구 관계 API, 채팅, GPS 경로 저장, 소셜 로그인"],
         ],
         [4, 11],
     )
 
-    add_heading(doc, "2. 요구사항 정의", 1)
-    add_heading(doc, "기능 요구사항", 2)
-    add_table(
+    heading(doc, "2. 주요 기능")
+    table(
         doc,
-        ["ID", "요구사항", "우선순위", "MVP"],
+        ["영역", "구현 내용"],
         [
-            ["FR-001", "이메일, 닉네임, 비밀번호로 회원가입할 수 있다.", "높음", "포함"],
-            ["FR-002", "이메일과 비밀번호로 로그인할 수 있다.", "높음", "포함"],
-            ["FR-003", "사용자는 자신의 프로필 정보를 조회할 수 있다.", "높음", "포함"],
-            ["FR-004", "거리, 시간, 날짜, 메모로 러닝 기록을 저장할 수 있다.", "높음", "포함"],
-            ["FR-005", "시스템은 거리와 시간을 기반으로 페이스를 계산한다.", "높음", "포함"],
-            ["FR-006", "사용자는 최신 러닝 기록 피드를 조회할 수 있다.", "높음", "포함"],
-            ["FR-007", "친구 추가와 주간 랭킹을 제공한다.", "중간", "제외"],
-            ["FR-008", "GPS 좌표 저장과 코스 추천을 제공한다.", "낮음", "제외"],
+            ["인증", "회원가입, 로그인, JWT 발급, 세션 복원, 이메일/닉네임 중복 체크"],
+            ["보안", "bcrypt 비밀번호 해시, Bearer 토큰, 환경변수 기반 설정, .env 제외"],
+            ["러닝", "거리, 시간, 날짜, 메모 저장 및 페이스 자동 계산"],
+            ["소셜", "피드 화면, 친구 화면 UI, 채팅 탭 UI"],
+            ["앱 경험", "스플래시, 홈, 기록, 설정, 라이트/다크 테마"],
         ],
-        [2.2, 8.2, 2.2, 2.0],
-    )
-    add_heading(doc, "비기능 요구사항", 2)
-    add_table(
-        doc,
-        ["ID", "구분", "요구사항"],
-        [
-            ["NFR-001", "보안", "비밀번호는 평문으로 저장하지 않는다."],
-            ["NFR-002", "보안", "인증 API는 JWT Bearer token을 사용한다."],
-            ["NFR-003", "유지보수", "요청/응답 구조는 Pydantic Schema로 분리한다."],
-            ["NFR-004", "실행환경", "개발용 DB는 Docker Compose로 실행 가능해야 한다."],
-            ["NFR-005", "문서화", "로컬 실행 방법과 API 구조를 문서화한다."],
-        ],
-        [2.4, 3.0, 9.6],
+        [4, 11],
     )
 
-    add_heading(doc, "3. WBS", 1)
-    add_table(
-        doc,
-        ["WBS", "작업", "산출물", "상태"],
-        [
-            ["1", "프로젝트 기획", "프로젝트 개요, 요구사항 정의서", "완료"],
-            ["2", "개발환경 구축", "Python, Docker, Flutter, Android 구조", "완료"],
-            ["3", "백엔드 MVP 구현", "FastAPI API, MySQL 연동", "완료"],
-            ["4", "프론트엔드 MVP 구현", "Flutter 화면, API 클라이언트", "완료"],
-            ["5", "검증", "Backend smoke test, Flutter analyze/test", "완료"],
-            ["6", "문서화", "README, 개발문서, 포트폴리오 문서", "완료"],
-            ["7", "GitHub 업로드", "Private repository", "완료"],
-            ["8", "Android 검증", "Emulator 앱 실행 확인", "예정"],
-        ],
-        [2.0, 5.0, 6.0, 2.2],
-    )
-    add_heading(doc, "마일스톤", 2)
-    add_table(
-        doc,
-        ["마일스톤", "목표", "상태"],
-        [
-            ["M1", "MVP 기능 범위 확정", "완료"],
-            ["M2", "백엔드/DB 실행 성공", "완료"],
-            ["M3", "Flutter 기본 화면 구현", "완료"],
-            ["M4", "GitHub private 업로드", "완료"],
-            ["M5", "Android Emulator 검증", "예정"],
-        ],
-        [3.0, 9.0, 2.4],
-    )
-
-    add_heading(doc, "4. 시스템 아키텍처", 1)
-    add_callout(
-        doc,
-        "Architecture",
-        "Flutter App -> REST API -> FastAPI Backend -> SQLAlchemy ORM -> MySQL Database",
-        LIGHT_BLUE,
-    )
-    add_table(
+    heading(doc, "3. 시스템 아키텍처")
+    callout(doc, "Architecture", "Flutter App -> REST API -> FastAPI -> SQLAlchemy -> MySQL", LIGHT_BLUE)
+    table(
         doc,
         ["구성 요소", "역할"],
         [
-            ["Flutter App", "사용자 화면, 입력 처리, API 호출"],
-            ["FastAPI Backend", "인증, 러닝 기록 저장, 피드 조회 API 제공"],
-            ["MySQL", "사용자 정보와 러닝 기록 저장"],
-            ["Docker Compose", "개발용 MySQL 컨테이너 실행"],
-            ["Android Studio", "Android 앱 실행 및 에뮬레이터 관리"],
+            ["Flutter", "사용자 화면, 입력 검증, REST API 호출, 로컬 세션 저장"],
+            ["FastAPI", "인증, 사용자, 러닝 기록, 피드 API 제공"],
+            ["MySQL", "사용자와 러닝 기록 저장"],
+            ["Docker Compose", "개발용 MySQL 실행 환경"],
+            ["PowerShell Scripts", "DB, 백엔드, smoke test 실행 자동화"],
         ],
         [4, 11],
     )
-    add_heading(doc, "인증 흐름", 2)
-    add_bullets(
-        doc,
-        [
-            "회원가입 또는 로그인 요청을 FastAPI 서버로 전송한다.",
-            "서버는 사용자 정보를 검증하고 JWT access token을 발급한다.",
-            "Flutter 앱은 인증 API 호출 시 Authorization header에 Bearer token을 포함한다.",
-        ],
-    )
 
-    add_heading(doc, "5. API 명세", 1)
-    add_table(
+    heading(doc, "4. API 명세 요약")
+    table(
         doc,
         ["Method", "Endpoint", "설명", "인증"],
         [
             ["GET", "/health", "서버 상태 확인", "불필요"],
+            ["GET", "/auth/check-email", "이메일 중복 확인", "불필요"],
+            ["GET", "/auth/check-username", "닉네임 중복 확인", "불필요"],
             ["POST", "/auth/signup", "회원가입", "불필요"],
             ["POST", "/auth/login", "로그인", "불필요"],
             ["GET", "/users/me", "내 프로필 조회", "필요"],
             ["POST", "/running-records", "러닝 기록 저장", "필요"],
             ["GET", "/running-records/me", "내 러닝 기록 조회", "필요"],
-            ["GET", "/feed", "최신 피드 조회", "불필요"],
+            ["GET", "/feed", "피드 조회", "불필요"],
         ],
-        [2.3, 4.5, 5.7, 2.0],
-    )
-    add_heading(doc, "러닝 기록 저장 예시", 2)
-    add_callout(
-        doc,
-        "POST /running-records",
-        '{ "distance_km": 5.0, "duration_seconds": 1800, "run_date": "2026-05-06", "memo": "5km easy run" }',
-        LIGHT_GRAY,
+        [2.2, 4.8, 5.5, 2.0],
     )
 
-    add_heading(doc, "6. DB 설계", 1)
-    add_callout(doc, "ERD", "users 1 ─── N running_records", LIGHT_BLUE)
-    add_heading(doc, "users 테이블", 2)
-    add_table(
+    heading(doc, "5. DB 설계")
+    table(
         doc,
-        ["컬럼", "타입", "설명"],
+        ["테이블", "핵심 컬럼", "설명"],
         [
-            ["id", "Integer / PK", "사용자 ID"],
-            ["email", "String(255)", "로그인 이메일, Unique"],
-            ["username", "String(50)", "닉네임, Unique"],
-            ["hashed_password", "String(255)", "해시된 비밀번호"],
-            ["created_at", "DateTime", "가입 시각"],
+            ["users", "id, email, username, hashed_password, created_at", "회원 계정과 인증 정보를 저장"],
+            ["running_records", "id, user_id, distance_km, duration_seconds, pace, run_date, memo", "사용자별 러닝 기록 저장"],
         ],
-        [4, 4, 7],
-    )
-    add_heading(doc, "running_records 테이블", 2)
-    add_table(
-        doc,
-        ["컬럼", "타입", "설명"],
-        [
-            ["id", "Integer / PK", "러닝 기록 ID"],
-            ["user_id", "Integer / FK", "작성자 ID"],
-            ["distance_km", "Float", "거리(km)"],
-            ["duration_seconds", "Integer", "러닝 시간(초)"],
-            ["pace_seconds_per_km", "Integer", "1km당 페이스"],
-            ["run_date", "Date", "러닝 날짜"],
-            ["memo", "String(255)", "메모"],
-            ["created_at", "DateTime", "생성 시각"],
-        ],
-        [4, 4, 7],
+        [3.2, 6.5, 5.3],
     )
 
-    add_heading(doc, "7. 테스트 계획 및 결과", 1)
-    add_table(
+    heading(doc, "6. 테스트 및 검증")
+    table(
         doc,
-        ["ID", "테스트 항목", "기대 결과", "결과"],
+        ["항목", "명령/방법", "기대 결과"],
         [
-            ["TC-BE-001", "/health 호출", "status ok 반환", "통과"],
-            ["TC-BE-002", "회원가입", "access token 반환", "통과"],
-            ["TC-BE-003", "러닝 기록 저장", "기록 ID 반환", "통과"],
-            ["TC-BE-004", "피드 조회", "저장된 기록 포함", "통과"],
-            ["TC-FE-001", "Flutter analyze", "No issues found", "통과"],
-            ["TC-FE-002", "Flutter widget test", "All tests passed", "통과"],
+            ["정적 분석", "flutter analyze", "Dart/Flutter 분석 통과"],
+            ["위젯 테스트", "flutter test", "테스트 통과"],
+            ["Windows 빌드", "flutter build windows --debug", "데스크톱 빌드 성공"],
+            ["백엔드 smoke", "scripts/smoke-backend.ps1", "회원가입, 로그인, 기록, 피드 흐름 확인"],
         ],
-        [2.5, 5.0, 5.0, 2.0],
+        [3.2, 5.7, 6.1],
     )
-    add_heading(doc, "미수행 테스트", 2)
-    add_bullets(
+
+    heading(doc, "7. 포트폴리오 어필 포인트")
+    bullets(
         doc,
         [
-            "Android Emulator에서 실제 회원가입 -> 기록 저장 -> 피드 조회 플로우 검증",
-            "네트워크 오류 및 입력값 경계 테스트",
-            "친구/랭킹 기능 테스트는 2단계에서 수행",
+            "단순 화면 구현이 아니라 백엔드, DB, 인증, 보안, 테스트 문서까지 연결했습니다.",
+            "회원가입 입력 검증과 중복 체크를 프론트와 API 양쪽에서 고려했습니다.",
+            "실제 유지보수를 위해 화면, 서비스, 모델, 테마, 위젯을 분리했습니다.",
+            "README, 아키텍처, API, DB, 테스트 계획을 제출 가능한 형태로 정리했습니다.",
         ],
     )
 
-    add_heading(doc, "8. 개발 회고 및 향후 계획", 1)
-    add_heading(doc, "잘한 점", 2)
-    add_bullets(
+    heading(doc, "8. 다음 개발 계획")
+    table(
         doc,
+        ["우선순위", "작업"],
         [
-            "MVP 범위를 명확히 제한해 핵심 흐름을 먼저 완성했다.",
-            "Docker, FastAPI, Flutter 실행 과정을 스크립트와 문서로 정리했다.",
-            "회원가입, 기록 저장, 피드 조회를 smoke test로 검증했다.",
-            "passlib와 bcrypt 버전 호환 문제를 발견하고 고정했다.",
+            ["1", "친구 관계 API와 친구 목록 실데이터 연동"],
+            ["2", "러닝 기록 작성 화면과 피드 업로드 흐름 고도화"],
+            ["3", "GPS 위치 권한, 경로 저장, 지도 표시"],
+            ["4", "소셜 로그인 도입 전 OAuth 보안 검토"],
+            ["5", "Android 실기기 QA와 배포 준비"],
         ],
-    )
-    add_heading(doc, "개선할 점", 2)
-    add_bullets(
-        doc,
-        [
-            "Android Emulator에서 실제 앱 실행 캡처를 추가한다.",
-            "UI를 포트폴리오 제출용으로 더 정돈한다.",
-            "오류 응답과 입력 검증 메시지를 강화한다.",
-            "Alembic을 도입해 DB 마이그레이션을 관리한다.",
-        ],
-    )
-    add_heading(doc, "다음 개발 계획", 2)
-    add_table(
-        doc,
-        ["순서", "작업"],
-        [
-            ["1", "Android Studio에서 앱 실행"],
-            ["2", "회원가입부터 피드 조회까지 앱 수동 테스트"],
-            ["3", "UI polish"],
-            ["4", "친구 기능 설계"],
-            ["5", "주간 랭킹 API 구현"],
-        ],
-        [2, 13],
+        [3, 12],
     )
 
     doc.save(OUT_PATH)

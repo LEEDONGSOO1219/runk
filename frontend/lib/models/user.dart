@@ -1,4 +1,4 @@
-class User {
+﻿class User {
   const User({
     required this.id,
     required this.email,
@@ -15,5 +15,13 @@ class User {
       email: json['email'] as String,
       username: json['username'] as String,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'username': username,
+    };
   }
 }

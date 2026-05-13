@@ -1,8 +1,9 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db import Base, engine, get_db
 from app.dependencies import get_current_user
@@ -22,16 +23,25 @@ app = FastAPI(title="Runk API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5000",
-        "http://localhost:5173",
-        "http://localhost:8080",
-    ],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "geolocation=()"
+    if settings.environment != "local":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
 
 
 @app.get("/health")
@@ -39,17 +49,38 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/auth/check-username")
+def check_username(
+    username: str = Query(min_length=2, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$"),
+    db: Session = Depends(get_db),
+):
+    existing_user = db.scalar(select(User).where(User.username == username))
+    return {"available": existing_user is None}
+
+
+@app.get("/auth/check-email")
+def check_email(
+    email: str = Query(min_length=3, max_length=255),
+    db: Session = Depends(get_db),
+):
+    existing_user = db.scalar(select(User).where(User.email == email))
+    return {"available": existing_user is None}
+
+
 @app.post("/auth/signup", response_model=Token, status_code=status.HTTP_201_CREATED)
 def signup(payload: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.scalar(
-        select(User).where(
-            (User.email == payload.email) | (User.username == payload.username)
-        )
-    )
-    if existing_user:
+    existing_email = db.scalar(select(User).where(User.email == payload.email))
+    if existing_email:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email or username already exists",
+            detail="Email already exists",
+        )
+
+    existing_username = db.scalar(select(User).where(User.username == payload.username))
+    if existing_username:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already exists",
         )
 
     user = User(
@@ -118,11 +149,14 @@ def read_my_running_records(
 
 
 @app.get("/feed", response_model=list[RunningRecordRead])
-def read_feed(db: Session = Depends(get_db)):
+def read_feed(
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
     records = db.scalars(
         select(RunningRecord)
         .order_by(desc(RunningRecord.created_at))
-        .limit(50)
+        .limit(limit)
     ).all()
     return [_record_to_read(record) for record in records]
 
