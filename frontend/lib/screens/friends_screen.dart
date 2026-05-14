@@ -167,7 +167,8 @@ class _FriendCard extends StatelessWidget {
             const _Avatar(),
             const SizedBox(width: 14),
             Expanded(
-                child: _PersonText(name: friend.name, message: friend.message)),
+              child: _PersonText(name: friend.name, message: friend.message),
+            ),
             Text(
               friend.time,
               style: TextStyle(
@@ -245,15 +246,20 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final avatarFill = isDark ? const Color(0xFF20242B) : Colors.white;
+    final line = isDark ? const Color(0xFF2A3038) : const Color(0xFFE0E4EA);
+    final muted = isDark ? const Color(0xFF9AA3AF) : const Color(0xFF6B7280);
+
     return Container(
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
+        color: avatarFill,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: line),
       ),
-      child: Icon(Icons.person, size: 20, color: AppColors.muted),
+      child: Icon(Icons.person, size: 20, color: muted),
     );
   }
 }
@@ -293,8 +299,11 @@ class _PersonText extends StatelessWidget {
 }
 
 class _FriendItem {
-  const _FriendItem(
-      {required this.name, required this.message, required this.time});
+  const _FriendItem({
+    required this.name,
+    required this.message,
+    required this.time,
+  });
   final String name;
   final String message;
   final String time;

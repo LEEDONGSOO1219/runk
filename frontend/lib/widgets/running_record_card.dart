@@ -17,6 +17,10 @@ class RunningRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final avatarFill = isDark ? const Color(0xFF20242B) : Colors.white;
+    final line = isDark ? const Color(0xFF2A3038) : const Color(0xFFE0E4EA);
+
     return AppCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -29,9 +33,9 @@ class RunningRecordCard extends StatelessWidget {
                 height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceHigh,
+                  color: avatarFill,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.line),
+                  border: Border.all(color: line),
                 ),
                 child: Text(
                   record.username.substring(0, 1).toUpperCase(),
@@ -84,7 +88,9 @@ class RunningRecordCard extends StatelessWidget {
                 value: '${record.distanceKm.toStringAsFixed(2)}km',
               ),
               _Metric(
-                  label: '시간', value: formatDuration(record.durationSeconds)),
+                label: '시간',
+                value: formatDuration(record.durationSeconds),
+              ),
               _Metric(
                 label: '페이스',
                 value: '${formatPace(record.paceSecondsPerKm)}/km',
@@ -179,6 +185,7 @@ class _ActionPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceHigh,
           borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.line),
         ),
         child: Row(
           children: [

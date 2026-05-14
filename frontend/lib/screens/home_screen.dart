@@ -133,29 +133,23 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'RunK',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.text,
-                      fontWeight: FontWeight.w900,
-                    ),
+        Text(
+          'RunK',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: AppColors.text,
+                fontWeight: FontWeight.w900,
               ),
-              const SizedBox(height: 6),
-              Text(
-                '사람과 사람을 잇는 소셜 러닝',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '사람과 사람을 잇는 소셜 러닝',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.muted,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
         ),
       ],
     );

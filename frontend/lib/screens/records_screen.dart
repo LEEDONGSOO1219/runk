@@ -63,7 +63,9 @@ class _RecordsScreenState extends State<RecordsScreen> {
                   children: [
                     const _RecordsHeader(),
                     const SizedBox(height: 22),
-                    AppCard(child: Text('기록을 불러오지 못했습니다.\n${snapshot.error}')),
+                    AppCard(
+                      child: Text('기록을 불러오지 못했습니다.\n${snapshot.error}'),
+                    ),
                   ],
                 );
               }
@@ -182,17 +184,17 @@ class _ChartPanel extends StatelessWidget {
           const SectionHeader(title: '주간 흐름', subtitle: '최근 러닝 감각'),
           const SizedBox(height: 8),
           SizedBox(
-            height: 116,
+            height: 118,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: const [
-                _Bar(day: '월', height: 46),
-                _Bar(day: '화', height: 70),
-                _Bar(day: '수', height: 38),
-                _Bar(day: '목', height: 86),
-                _Bar(day: '금', height: 64),
-                _Bar(day: '토', height: 100),
-                _Bar(day: '일', height: 54),
+                _Bar(day: '월', height: 34),
+                _Bar(day: '화', height: 52),
+                _Bar(day: '수', height: 30),
+                _Bar(day: '목', height: 66),
+                _Bar(day: '금', height: 50),
+                _Bar(day: '토', height: 72),
+                _Bar(day: '일', height: 40),
               ],
             ),
           ),

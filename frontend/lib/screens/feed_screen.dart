@@ -63,7 +63,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   children: [
                     const _FeedHeader(),
                     const SizedBox(height: 22),
-                    AppCard(child: Text('피드를 불러오지 못했습니다.\n${snapshot.error}')),
+                    AppCard(
+                      child: Text('피드를 불러오지 못했습니다.\n${snapshot.error}'),
+                    ),
                   ],
                 );
               }
@@ -118,7 +120,7 @@ class _FeedHeader extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '밤의 기록을 조용히 나누는 공간',
+          '오늘의 기록을 조용히 나누는 공간',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.muted,
                 fontWeight: FontWeight.w600,
